@@ -91,8 +91,7 @@ def get_fc7 (image):
 	image_net = vgg_net(weights, processed_image)
 	fc7_layer = image_net['fc7']
 	#TODO: Debug shape of fc7_layer (200704,)
-	# return tf.reshape(fc7_layer, [-1])
-	return fc7_layer
+	return tf.reshape(fc7_layer, [-1])
 
 
 def merge_fc7 (features, method):
@@ -100,14 +99,23 @@ def merge_fc7 (features, method):
 	TODO: Merge fc7 features from different images using specified method
 
 	Inputs: 
-		features: List of feature vectors to be merged
+		features: Tuple of feature vectors to be merged
 		method: 'average': merge features by taking average
 			'argmax': merge features by keeping argmax
 
 	Outputs:
 		comb_feature: combined feature vector using 'method'
 	"""
-	pass
+	comb_feature = np.vstack(features)
+
+	if method == 'average':
+		comb_feature = np.mean(comb_feature, axis=0)
+
+	elif method == 'argmax':
+		mask = np.argmax(np.absolute(comb_feature), axis=0)
+		comb_feature = comb_feature[mask, np.arange(comb_feature.shape[1])]
+
+	return comb_feature
 
 def similarity (feature1, feature2, method, threshold):
 	"""
@@ -134,8 +142,11 @@ def main (argv=None):
 
 	# Read Images
 	print "Reading images and preprocessing ..."
+	# Aaron Sorkin
 	im1 = imread('/Users/deep/Programming/VGG/lfw2/Aaron_Sorkin/Aaron_Sorkin_0001.jpg')
 	im2 = imread('/Users/deep/Programming/VGG/lfw2/Aaron_Sorkin/Aaron_Sorkin_0002.jpg')
+
+	# Frank Solich
 	im3 = imread('/Users/deep/Programming/VGG/lfw2/Frank_Solich/Frank_Solich_0005.jpg')
 	im4 = imread('/Users/deep/Programming/VGG/lfw2/Frank_Solich/Frank_Solich_0004.jpg')
 
@@ -160,10 +171,19 @@ def main (argv=None):
 	feat3 = sess.run(feature, feed_dict={image: im3})
 	feat4 = sess.run(feature, feed_dict={image: im4})
 
-	print feat1.shape 
-	print feat2.shape
-	print feat3.shape
-	print feat4.shape 
+	# combine feature vectors using average method
+	comb1 = merge_fc7((feat1, feat2), method='average')
+	comb2 = merge_fc7((feat3, feat4), method='average')
+
+	# combine feature vectors using argmax method
+	comb3 = merge_fc7((feat1, feat2), method='argmax')
+	comb4 = merge_fc7((feat3, feat4), method='argmax')
+
+	
+	# print feat1.shape, type(feat1) 
+	# print feat2.shape, type(feat2) 
+	# print feat3.shape, type(feat3) 
+	# print feat4.shape, type(feat4) 
 
 if __name__ == "__main__":
     tf.app.run()
