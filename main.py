@@ -41,3 +41,5 @@ for i, name in enumerate(layers):
 		print i, name
 	#         current = utils.avg_pool_2x2(current)
 	#     net[name] = current
+
+	return net
