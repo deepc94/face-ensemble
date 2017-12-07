@@ -96,7 +96,7 @@ def get_fc7 (image):
 
 def merge_fc7 (features, method):
 	"""
-	TODO: Merge fc7 features from different images using specified method
+	Merge fc7 features from different images using specified method
 
 	Inputs: 
 		features: Tuple of feature vectors to be merged
@@ -119,7 +119,7 @@ def merge_fc7 (features, method):
 
 def similarity (feature1, feature2, method, threshold):
 	"""
-	TODO: Computes similarity between two fc7 feature vectors
+	Computes similarity between two fc7 feature vectors
 
 	Inputs: 
 		feature1: feature vector1
@@ -133,7 +133,17 @@ def similarity (feature1, feature2, method, threshold):
 		same: whether features belong to same person or not 
 			(True or False)
 	"""
-	pass
+	same = False
+
+	if method == 'L2':
+		score = np.sqrt(np.sum((feature1-feature2)**2))
+		if score <= threshold:
+			same = True
+	elif method == 'rank1':
+		pass
+
+	return (score, same)
+
 
 def main (argv=None):
 
@@ -150,11 +160,17 @@ def main (argv=None):
 	im3 = imread('/Users/deep/Programming/VGG/lfw2/Frank_Solich/Frank_Solich_0005.jpg')
 	im4 = imread('/Users/deep/Programming/VGG/lfw2/Frank_Solich/Frank_Solich_0004.jpg')
 
+	im5 = imread('/Users/deep/Programming/VGG/lfw2/Frank_Solich/Frank_Solich_0001.jpg')
+	im6 = imread('/Users/deep/Programming/VGG/lfw2/Frank_Solich/Frank_Solich_0002.jpg')
+
 	# convert RGB images to BGR
 	im1 = im1[:,:,[2,1,0]]
 	im2 = im2[:,:,[2,1,0]]
 	im3 = im3[:,:,[2,1,0]]
 	im4 = im4[:,:,[2,1,0]]
+
+	im5 = im5[:,:,[2,1,0]]
+	im6 = im6[:,:,[2,1,0]]
 
 	# resize images down to 224x224
 	im1 = imresize(im1, (224, 224)).reshape((1, 224, 224, 3))
@@ -162,24 +178,64 @@ def main (argv=None):
 	im3 = imresize(im3, (224, 224)).reshape((1, 224, 224, 3))
 	im4 = imresize(im4, (224, 224)).reshape((1, 224, 224, 3))
 
+	im5 = imresize(im5, (224, 224)).reshape((1, 224, 224, 3))
+	im6 = imresize(im6, (224, 224)).reshape((1, 224, 224, 3))
+
+
 	# init tf session and get the feature vectors for the 4 images
 	print "Evaluating forward pass for VGG face Descriptor ..." 
 	sess = tf.Session()
 	sess.run(tf.global_variables_initializer())
 	feat1 = sess.run(feature, feed_dict={image: im1})
 	feat2 = sess.run(feature, feed_dict={image: im2})
+
 	feat3 = sess.run(feature, feed_dict={image: im3})
 	feat4 = sess.run(feature, feed_dict={image: im4})
+
+	feat5 = sess.run(feature, feed_dict={image: im5})
+	feat6 = sess.run(feature, feed_dict={image: im6})
+
 
 	# combine feature vectors using average method
 	comb1 = merge_fc7((feat1, feat2), method='average')
 	comb2 = merge_fc7((feat3, feat4), method='average')
 
+	comb5 = merge_fc7((feat5, feat6), method='average')
+
+	print "im1, im1: ", similarity(feat1, feat1, 'L2', 1.0)
+	print "im1, im2: ", similarity(feat1, feat2, 'L2', 1.0)
+	print "im1, im3: ", similarity(feat1, feat3, 'L2', 1.0)
+	print "im1, im4: ", similarity(feat1, feat4, 'L2', 1.0)
+
+	print "im2, im2: ", similarity(feat2, feat2, 'L2', 1.0)
+	print "im2, im3: ", similarity(feat2, feat3, 'L2', 1.0)
+	print "im2, im4: ", similarity(feat2, feat4, 'L2', 1.0)
+
+	print "im3, im3: ", similarity(feat3, feat3, 'L2', 1.0)
+ 	print "im3, im4: ", similarity(feat3, feat4, 'L2', 1.0)
+
+ 	print 
+
+	print "im3, im5: ", similarity(feat3, feat5, 'L2', 1.0)
+	print "im3, im6: ", similarity(feat3, feat6, 'L2', 1.0)
+	print "im4, im5: ", similarity(feat4, feat5, 'L2', 1.0)
+	print "im4, im6: ", similarity(feat4, feat6, 'L2', 1.0)
+
+	print "im1+im2, im3+im4 using average: ", similarity(comb1, comb2, 'L2', 1.0)
+	print "im1+im2, im5+im6 using average: ", similarity(comb1, comb5, 'L2', 1.0)
+	print "im3+im4, im5+im6 using average: ", similarity(comb2, comb5, 'L2', 1.0)
+
+	print
 	# combine feature vectors using argmax method
 	comb3 = merge_fc7((feat1, feat2), method='argmax')
 	comb4 = merge_fc7((feat3, feat4), method='argmax')
+	comb6 = merge_fc7((feat5, feat6), method='average')
 
-	
+	print "im1+im2, im3+im4 using argmax: ", similarity(comb3, comb4, 'L2', 1.0)
+	print "im1+im2, im5+im6 using argmax: ", similarity(comb3, comb6, 'L2', 1.0)
+	print "im3+im4, im5+im6 using argmax: ", similarity(comb4, comb6, 'L2', 1.0)
+
+
 	# print feat1.shape, type(feat1) 
 	# print feat2.shape, type(feat2) 
 	# print feat3.shape, type(feat3) 
