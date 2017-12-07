@@ -4,10 +4,10 @@ Code to load the weights of pretrained VGG-Face Descriptor model and return
 
 Author: Deep Chakraborty
 Date: 12/07/2017
-
 """
 
-from __future__ import print_function
+__author__ = "Deep Chakraborty"
+
 import tensorflow as tf
 import numpy as np
 import scipy.io as sio
@@ -51,7 +51,7 @@ def vgg_net (weights, image):
 
 		name = weights[i][0,0]['name'][0]
 		kind = weights[i][0,0]['type'][0]
-
+		print kind
 		if kind == 'conv':
 			kernels, bias = weights[i][0,0]['weights'][0]
 			# matconvnet: weights are [width, height, in_channels, out_channels]
@@ -72,7 +72,7 @@ def get_fc7 (image):
 	"""
 	Extract fc7 features from given image
 	"""
-	print("setting up vgg initialized conv layers ...")
+	print "setting up vgg initialized conv layers ..." 
 	model_dir = '/Users/deep/Programming/VGG/'
 	model_name = 'vgg-face.mat'
 	model_data = sio.loadmat(model_dir+model_name)
@@ -84,14 +84,15 @@ def get_fc7 (image):
 	processed_image = utils.process_image(image, mean)
 
 	image_net = vgg_net(weights, processed_image)
-	fc7_layer = image_net['fc7']
-
-	return tf.reshape(fc7_layer, [-1])
+	fc7_layer = image_net['fc6']
+	#TODO: Debug shape of fc7_layer (200704,)
+	# return tf.reshape(fc7_layer, [-1])
+	return fc7_layer
 
 
 def merge_fc7 (features, method):
 	"""
-	Merge fc7 features from different images using specified method
+	TODO: Merge fc7 features from different images using specified method
 
 	Inputs: 
 		features: List of feature vectors to be merged
@@ -105,7 +106,7 @@ def merge_fc7 (features, method):
 
 def similarity (feature1, feature2, method, threshold):
 	"""
-	Computes similarity between two fc7 feature vectors
+	TODO: Computes similarity between two fc7 feature vectors
 
 	Inputs: 
 		feature1: feature vector1
@@ -127,7 +128,7 @@ def main (argv=None):
 	feature = get_fc7(image)
 
 	# Read Images
-	print("Reading images and preprocessing ...")
+	print "Reading images and preprocessing ..."
 	im1 = imread('/Users/deep/Programming/VGG/lfw2/Aaron_Sorkin/Aaron_Sorkin_0001.jpg')
 	im2 = imread('/Users/deep/Programming/VGG/lfw2/Aaron_Sorkin/Aaron_Sorkin_0002.jpg')
 	im3 = imread('/Users/deep/Programming/VGG/lfw2/Frank_Solich/Frank_Solich_0005.jpg')
@@ -145,8 +146,10 @@ def main (argv=None):
 	im3 = imresize(im3, (224, 224)).reshape((1, 224, 224, 3))
 	im4 = imresize(im4, (224, 224)).reshape((1, 224, 224, 3))
 
+	print im1.shape
+
 	# init tf session and get the feature vectors for the 4 images
-	print("Evaluating forward pass for VGG face Descriptor ...")
+	print "Evaluating forward pass for VGG face Descriptor ..." 
 	sess = tf.Session()
 	sess.run(tf.global_variables_initializer())
 	feat1 = sess.run(feature, feed_dict={image: im1})
@@ -154,10 +157,10 @@ def main (argv=None):
 	feat3 = sess.run(feature, feed_dict={image: im3})
 	feat4 = sess.run(feature, feed_dict={image: im4})
 
-	print(feat1.shape)
-	print(feat2.shape)
-	print(feat3.shape)
-	print(feat4.shape)
+	print feat1.shape 
+	print feat2.shape
+	print feat3.shape
+	print feat4.shape 
 
 if __name__ == "__main__":
     tf.app.run()
