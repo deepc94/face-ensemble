@@ -11,10 +11,11 @@ from __future__ import print_function
 import tensorflow as tf
 import numpy as np
 import scipy.io as sio
+from scipy.misc import imread, imsave, imresize
 
 import TensorflowUtils as utils
 
-def vgg_net(weights, image):
+def vgg_net (weights, image):
 
 	"""
 	VGG Architecture:
@@ -67,8 +68,10 @@ def vgg_net(weights, image):
 
 	return net
 
-def get_fc7(image):
-
+def get_fc7 (image):
+	"""
+	Extract fc7 features from given image
+	"""
 	model_dir = '/Users/deep/Programming/VGG/vgg-face-tensorflow/'
 	model_name = 'vgg-face.mat'
 	model_data = sio.loadmat(model_dir+model_name)
@@ -83,6 +86,76 @@ def get_fc7(image):
 	fc7_layer = image_net['fc7']
 
 	return tf.reshape(fc7_layer, [-1])
+
+
+def merge_fc7 (features, method):
+	"""
+	Merge fc7 features from different images using specified method
+
+	Inputs: 
+		features: List of feature vectors to be merged
+		method: 'average': merge features by taking average
+			'argmax': merge features by keeping argmax
+
+	Outputs:
+		comb_feature: combined feature vector using 'method'
+	"""
+	pass
+
+def similarity (feature1, feature2, method, threshold):
+	"""
+	Computes similarity between two fc7 feature vectors
+
+	Inputs: 
+		feature1: feature vector1
+		feature2: feature vector2
+		method: 'L2': compute similarity using L2 distance
+			'rank1': computer similarity using rank1 score
+		threshold: similarity threshold for reporting same or not
+
+	Outputs:
+		score: similarity score between two feature vectors
+		same: whether features belong to same person or not 
+			(True or False)
+	"""
+	pass
+
+def main (argv=None):
+
+	image = tf.placeholder(tf.float32, shape=[None, 224, 224, 3], name="input_image")
+	feature = get_fc7(image)
+
+	# Read Images
+	im1 = imread('/Users/deep/Programming/VGG/lfw 2/Aaron_Sorkin/Aaron_Sorkin_0001')
+	im2 = imread('/Users/deep/Programming/VGG/lfw 2/Aaron_Sorkin/Aaron_Sorkin_0002')
+	im3 = imread('/Users/deep/Programming/VGG/lfw 2/Frank_Solich/Frank_Solich_0005')
+	im4 = imread('/Users/deep/Programming/VGG/lfw 2/Frank_Solich/Frank_Solich_0004')
+
+	# convert RGB images to BGR
+	im1 = im1[:,:,[2,1,0]]
+	im2 = im2[:,:,[2,1,0]]
+	im3 = im3[:,:,[2,1,0]]
+	im4 = im4[:,:,[2,1,0]]
+
+	# resize images down to 224x224
+	im1 = imresize(im1, (224, 224))
+	im2 = imresize(im2, (224, 224))
+	im3 = imresize(im3, (224, 224))
+	im4 = imresize(im4, (224, 224))
+
+	im = np.stack([im1, im2, im3, im4], axis=0)
+
+	# init tf session and get the feature vectors for the 4 images
+	sess = tf.Session()
+	sess.run(tf.global_variables_inializer())
+	feat = sess.run(feature, feed_dict={image: im})
+	print feat.shape
+
+if __name__ == "__main__":
+    tf.app.run()
+
+
+
 
 
 
