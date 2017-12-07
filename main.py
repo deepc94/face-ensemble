@@ -50,18 +50,23 @@ def vgg_net (weights, image):
 			break
 
 		name = weights[i][0,0]['name'][0]
-		kind = weights[i][0,0]['type'][0]
-		print kind
-		if kind == 'conv':
+		kind = name[:2]
+
+		if kind == 'co':
 			kernels, bias = weights[i][0,0]['weights'][0]
 			# matconvnet: weights are [width, height, in_channels, out_channels]
 			# tensorflow: weights are [height, width, in_channels, out_channels]
 			kernels = utils.get_variable(np.transpose(kernels, (1, 0, 2, 3)), name=name + "_w")
 			bias = utils.get_variable(bias.reshape(-1), name=name + "_b")
 			current = utils.conv2d_basic(current, kernels, bias)
-		elif kind == 'relu':
+		elif kind == 'fc':
+			kernels, bias = weights[i][0,0]['weights'][0]
+			kernels = utils.get_variable(np.transpose(kernels, (1, 0, 2, 3)), name=name + "_w")
+			bias = utils.get_variable(bias.reshape(-1), name=name + "_b")
+			current = utils.conv2d_same(current, kernels, bias)
+		elif kind == 're':
 			current = tf.nn.relu(current, name=name)
-		elif kind == 'pool':
+		elif kind == 'po':
 			current = utils.max_pool_2x2(current)
 
 		net[name] = current
@@ -84,7 +89,7 @@ def get_fc7 (image):
 	processed_image = utils.process_image(image, mean)
 
 	image_net = vgg_net(weights, processed_image)
-	fc7_layer = image_net['fc6']
+	fc7_layer = image_net['fc7']
 	#TODO: Debug shape of fc7_layer (200704,)
 	# return tf.reshape(fc7_layer, [-1])
 	return fc7_layer
@@ -145,8 +150,6 @@ def main (argv=None):
 	im2 = imresize(im2, (224, 224)).reshape((1, 224, 224, 3))
 	im3 = imresize(im3, (224, 224)).reshape((1, 224, 224, 3))
 	im4 = imresize(im4, (224, 224)).reshape((1, 224, 224, 3))
-
-	print im1.shape
 
 	# init tf session and get the feature vectors for the 4 images
 	print "Evaluating forward pass for VGG face Descriptor ..." 

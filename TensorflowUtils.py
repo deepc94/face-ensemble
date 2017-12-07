@@ -89,6 +89,9 @@ def conv2d_basic(x, W, bias):
 	conv = tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding="SAME")
 	return tf.nn.bias_add(conv, bias)
 
+def conv2d_same(x, W, bias):
+    conv = tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding="VALID")
+    return tf.nn.bias_add(conv, bias)
 
 def conv2d_strided(x, W, b):
 	conv = tf.nn.conv2d(x, W, strides=[1, 2, 2, 1], padding="SAME")
