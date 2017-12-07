@@ -72,7 +72,8 @@ def get_fc7 (image):
 	"""
 	Extract fc7 features from given image
 	"""
-	model_dir = '/Users/deep/Programming/VGG/vgg-face-tensorflow/'
+	print("setting up vgg initialized conv layers ...")
+	model_dir = '/Users/deep/Programming/VGG/'
 	model_name = 'vgg-face.mat'
 	model_data = sio.loadmat(model_dir+model_name)
 	weights = np.squeeze(model_data['layers'])
@@ -126,10 +127,11 @@ def main (argv=None):
 	feature = get_fc7(image)
 
 	# Read Images
-	im1 = imread('/Users/deep/Programming/VGG/lfw 2/Aaron_Sorkin/Aaron_Sorkin_0001')
-	im2 = imread('/Users/deep/Programming/VGG/lfw 2/Aaron_Sorkin/Aaron_Sorkin_0002')
-	im3 = imread('/Users/deep/Programming/VGG/lfw 2/Frank_Solich/Frank_Solich_0005')
-	im4 = imread('/Users/deep/Programming/VGG/lfw 2/Frank_Solich/Frank_Solich_0004')
+	print("Reading images and preprocessing ...")
+	im1 = imread('/Users/deep/Programming/VGG/lfw2/Aaron_Sorkin/Aaron_Sorkin_0001.jpg')
+	im2 = imread('/Users/deep/Programming/VGG/lfw2/Aaron_Sorkin/Aaron_Sorkin_0002.jpg')
+	im3 = imread('/Users/deep/Programming/VGG/lfw2/Frank_Solich/Frank_Solich_0005.jpg')
+	im4 = imread('/Users/deep/Programming/VGG/lfw2/Frank_Solich/Frank_Solich_0004.jpg')
 
 	# convert RGB images to BGR
 	im1 = im1[:,:,[2,1,0]]
@@ -138,18 +140,24 @@ def main (argv=None):
 	im4 = im4[:,:,[2,1,0]]
 
 	# resize images down to 224x224
-	im1 = imresize(im1, (224, 224))
-	im2 = imresize(im2, (224, 224))
-	im3 = imresize(im3, (224, 224))
-	im4 = imresize(im4, (224, 224))
-
-	im = np.stack([im1, im2, im3, im4], axis=0)
+	im1 = imresize(im1, (224, 224)).reshape((1, 224, 224, 3))
+	im2 = imresize(im2, (224, 224)).reshape((1, 224, 224, 3))
+	im3 = imresize(im3, (224, 224)).reshape((1, 224, 224, 3))
+	im4 = imresize(im4, (224, 224)).reshape((1, 224, 224, 3))
 
 	# init tf session and get the feature vectors for the 4 images
+	print("Evaluating forward pass for VGG face Descriptor ...")
 	sess = tf.Session()
-	sess.run(tf.global_variables_inializer())
-	feat = sess.run(feature, feed_dict={image: im})
-	print feat.shape
+	sess.run(tf.global_variables_initializer())
+	feat1 = sess.run(feature, feed_dict={image: im1})
+	feat2 = sess.run(feature, feed_dict={image: im2})
+	feat3 = sess.run(feature, feed_dict={image: im3})
+	feat4 = sess.run(feature, feed_dict={image: im4})
+
+	print(feat1.shape)
+	print(feat2.shape)
+	print(feat3.shape)
+	print(feat4.shape)
 
 if __name__ == "__main__":
     tf.app.run()
