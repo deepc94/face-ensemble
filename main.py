@@ -14,6 +14,7 @@ import scipy.io as sio
 from scipy.misc import imread, imsave, imresize
 
 import TensorflowUtils as utils
+from lfw import *
 
 def vgg_net (weights, image):
 
@@ -86,12 +87,14 @@ def get_fc7 (image):
 	#subracting mean
 	meta = model_data['meta']
 	mean =  meta[0,0]['normalization'][0,0]['averageImage']
-	processed_image = utils.process_image(image, mean)
+	mean_pixel = np.mean(mean, axis=(0, 1))
+
+	processed_image = utils.process_image(image, mean_pixel)
 
 	image_net = vgg_net(weights, processed_image)
 	fc7_layer = image_net['fc7']
-	#TODO: Debug shape of fc7_layer (200704,)
-	return tf.reshape(fc7_layer, [-1])
+	# return tf.reshape(fc7_layer, [-1])
+	return fc7_layer
 
 
 def merge_fc7 (features, method):
@@ -101,7 +104,7 @@ def merge_fc7 (features, method):
 	Inputs: 
 		features: Tuple of feature vectors to be merged
 		method: 'average': merge features by taking average
-			'argmax': merge features by keeping argmax
+			'max_contrib': merge features by keeping maximal contributions
 
 	Outputs:
 		comb_feature: combined feature vector using 'method'
@@ -111,7 +114,7 @@ def merge_fc7 (features, method):
 	if method == 'average':
 		comb_feature = np.mean(comb_feature, axis=0)
 
-	elif method == 'argmax':
+	elif method == 'max_contrib':
 		mask = np.argmax(np.absolute(comb_feature), axis=0)
 		comb_feature = comb_feature[mask, np.arange(comb_feature.shape[1])]
 
@@ -147,99 +150,48 @@ def similarity (feature1, feature2, method, threshold):
 
 def main (argv=None):
 
+	print "Start ..."
 	image = tf.placeholder(tf.float32, shape=[None, 224, 224, 3], name="input_image")
 	feature = get_fc7(image)
 
 	# Read Images
 	print "Reading images and preprocessing ..."
-	# Aaron Sorkin
-	im1 = imread('/Users/deep/Programming/VGG/lfw2/Aaron_Sorkin/Aaron_Sorkin_0001.jpg')
-	im2 = imread('/Users/deep/Programming/VGG/lfw2/Aaron_Sorkin/Aaron_Sorkin_0002.jpg')
 
-	# Frank Solich
-	im3 = imread('/Users/deep/Programming/VGG/lfw2/Frank_Solich/Frank_Solich_0005.jpg')
-	im4 = imread('/Users/deep/Programming/VGG/lfw2/Frank_Solich/Frank_Solich_0004.jpg')
+	# define image paths
+	pairs_path = './pairsDevTrain.txt'
+	suffix = 'jpg'
+	root = './dataset/lfw2'
 
-	im5 = imread('/Users/deep/Programming/VGG/lfw2/Frank_Solich/Frank_Solich_0001.jpg')
-	im6 = imread('/Users/deep/Programming/VGG/lfw2/Frank_Solich/Frank_Solich_0002.jpg')
+	# determine image pairs to be loaded
+	pairs = load_pairs(pairs_path)
 
-	# convert RGB images to BGR
-	im1 = im1[:,:,[2,1,0]]
-	im2 = im2[:,:,[2,1,0]]
-	im3 = im3[:,:,[2,1,0]]
-	im4 = im4[:,:,[2,1,0]]
+	# define placeholders for 2 sets of images to be compared, as well as their labels
+	image1 = np.zeros([pairs.shape[0], 224, 224, 3], dtype=np.float32)
+	image2 = np.zeros([pairs.shape[0], 224, 224, 3], dtype=np.float32)
+	same = np.zeros([pairs.shape[0]], dtype=np.int32)
 
-	im5 = im5[:,:,[2,1,0]]
-	im6 = im6[:,:,[2,1,0]]
+	# load the images
+	i=0
+	for pair in pairs:
+		name1, name2, same[i] = pairs_info(pair, suffix)
+		image1[i,:], image2[i,:] = readImage(root, name1, name2)
+		i += 1
 
-	# resize images down to 224x224
-	im1 = imresize(im1, (224, 224)).reshape((1, 224, 224, 3))
-	im2 = imresize(im2, (224, 224)).reshape((1, 224, 224, 3))
-	im3 = imresize(im3, (224, 224)).reshape((1, 224, 224, 3))
-	im4 = imresize(im4, (224, 224)).reshape((1, 224, 224, 3))
-
-	im5 = imresize(im5, (224, 224)).reshape((1, 224, 224, 3))
-	im6 = imresize(im6, (224, 224)).reshape((1, 224, 224, 3))
-
-
-	# init tf session and get the feature vectors for the 4 images
+	# init tf session and get the feature vectors for the images
 	print "Evaluating forward pass for VGG face Descriptor ..." 
 	sess = tf.Session()
 	sess.run(tf.global_variables_initializer())
-	feat1 = sess.run(feature, feed_dict={image: im1})
-	feat2 = sess.run(feature, feed_dict={image: im2})
+	feature1 = sess.run(feature, feed_dict={image: image1})
+	feature2 = sess.run(feature, feed_dict={image: image2})
 
-	feat3 = sess.run(feature, feed_dict={image: im3})
-	feat4 = sess.run(feature, feed_dict={image: im4})
+	print feature1.shape
+	print feature2.shape
 
-	feat5 = sess.run(feature, feed_dict={image: im5})
-	feat6 = sess.run(feature, feed_dict={image: im6})
+	# # combine feature vectors using average method
+	# comb1 = merge_fc7((feat1, feat2), method='average')
+	# comb2 = merge_fc7((feat3, feat4), method='average')
 
-
-	# combine feature vectors using average method
-	comb1 = merge_fc7((feat1, feat2), method='average')
-	comb2 = merge_fc7((feat3, feat4), method='average')
-
-	comb5 = merge_fc7((feat5, feat6), method='average')
-
-	print "im1, im1: ", similarity(feat1, feat1, 'L2', 1.0)
-	print "im1, im2: ", similarity(feat1, feat2, 'L2', 1.0)
-	print "im1, im3: ", similarity(feat1, feat3, 'L2', 1.0)
-	print "im1, im4: ", similarity(feat1, feat4, 'L2', 1.0)
-
-	print "im2, im2: ", similarity(feat2, feat2, 'L2', 1.0)
-	print "im2, im3: ", similarity(feat2, feat3, 'L2', 1.0)
-	print "im2, im4: ", similarity(feat2, feat4, 'L2', 1.0)
-
-	print "im3, im3: ", similarity(feat3, feat3, 'L2', 1.0)
- 	print "im3, im4: ", similarity(feat3, feat4, 'L2', 1.0)
-
- 	print 
-
-	print "im3, im5: ", similarity(feat3, feat5, 'L2', 1.0)
-	print "im3, im6: ", similarity(feat3, feat6, 'L2', 1.0)
-	print "im4, im5: ", similarity(feat4, feat5, 'L2', 1.0)
-	print "im4, im6: ", similarity(feat4, feat6, 'L2', 1.0)
-
-	print "im1+im2, im3+im4 using average: ", similarity(comb1, comb2, 'L2', 1.0)
-	print "im1+im2, im5+im6 using average: ", similarity(comb1, comb5, 'L2', 1.0)
-	print "im3+im4, im5+im6 using average: ", similarity(comb2, comb5, 'L2', 1.0)
-
-	print
-	# combine feature vectors using argmax method
-	comb3 = merge_fc7((feat1, feat2), method='argmax')
-	comb4 = merge_fc7((feat3, feat4), method='argmax')
-	comb6 = merge_fc7((feat5, feat6), method='average')
-
-	print "im1+im2, im3+im4 using argmax: ", similarity(comb3, comb4, 'L2', 1.0)
-	print "im1+im2, im5+im6 using argmax: ", similarity(comb3, comb6, 'L2', 1.0)
-	print "im3+im4, im5+im6 using argmax: ", similarity(comb4, comb6, 'L2', 1.0)
-
-
-	# print feat1.shape, type(feat1) 
-	# print feat2.shape, type(feat2) 
-	# print feat3.shape, type(feat3) 
-	# print feat4.shape, type(feat4) 
+	# comb5 = merge_fc7((feat5, feat6), method='average')
 
 if __name__ == "__main__":
     tf.app.run()
