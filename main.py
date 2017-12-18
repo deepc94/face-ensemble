@@ -9,12 +9,14 @@ Date Modified: 12/18/2017
 
 __author__ = "Deep Chakraborty"
 
+from __future__ import print_function
 import tensorflow as tf
 import numpy as np
 import scipy.io as sio
 from scipy.misc import imread, imsave, imresize
+from scipy import spatial
 import scipy.io as sio
-import cPickle as pickle
+# import cPickle as pickle
 
 import TensorflowUtils as utils
 from lfw import *
@@ -47,7 +49,7 @@ def vgg_net (weights, image):
 	net = {}
 	current = image
 
-	for i in xrange(layer_num):
+	for i in range(layer_num):
 
 		# exit the loop after fc7 layer (skip relu7, fc8, prob)
 		if i >= layer_num - 3:
@@ -81,7 +83,7 @@ def get_fc7 (image):
 	"""
 	Extract fc7 features from given image
 	"""
-	print "setting up vgg initialized conv layers ..." 
+	print("setting up vgg initialized conv layers ...")
 	model_dir = '/Users/deep/Programming/VGG/'
 	model_name = 'vgg-face.mat'
 	model_data = sio.loadmat(model_dir+model_name)
@@ -140,6 +142,11 @@ def similarity (feature1, feature2, method):
 	if method == 'L2':
 		score = np.sqrt(np.sum((feature1-feature2)**2, axis=1))
 
+	elif method == 'cosine':
+		score = np.zeros(feature1.shape[0], dtype=np.float32)
+		for i in range(feature1.shape[0]):
+			score[i] = spatial.distance.cosine(feature1[i,:], feature2[i,:])
+
 	elif method == 'rank1':
 		pass
 
@@ -148,7 +155,7 @@ def similarity (feature1, feature2, method):
 
 def main (argv=None):
 
-	print "Start ..."
+	print("Start ...")
 	image = tf.placeholder(tf.float32, shape=[None, 224, 224, 3], name="input_image")
 	# Define placeholder for fc7 features of an image
 	feature = get_fc7(image)
@@ -167,7 +174,7 @@ def main (argv=None):
 	with tf.Session() as sess:
 
 		# init tf session and get the feature vectors for the images
-		print "Evaluating forward pass for VGG face Descriptor ..." 
+		print("Evaluating forward pass for VGG face Descriptor ...")
 		sess.run(tf.global_variables_initializer())
 		# define placeholders for 2 sets of images to be compared, as well as their labels
 		feature1 = np.zeros([pairs.shape[0], 4096], dtype=np.float32)
@@ -178,7 +185,7 @@ def main (argv=None):
 		i=0
 		for pair in pairs:
 			if i%10 == 0 or i==0:
-				print "Evaluated %d pairs" % (i)
+				print("Evaluated {} pairs".format(i))
 			name1, name2, same[i] = pairs_info(pair, suffix)
 			image1, image2 = readImage(root, name1, name2)
 
@@ -187,15 +194,17 @@ def main (argv=None):
 			i += 1
 
 	distances = similarity(feature1, feature2, 'L2')
-	file_ID = 'distances.pkl'
-	f = open(file_ID, "w")
-	pickle.dump(distances, f, protocol=pickle.HIGHEST_PROTOCOL)
-	pickle.dump(same, f, protocol=pickle.HIGHEST_PROTOCOL)
-	f.close()
+	dist_cos = similarity(feature1, feature2, 'cosine')
+	# file_ID = 'distances.pkl'
+	# f = open(file_ID, "w")
+	# pickle.dump(distances, f, protocol=pickle.HIGHEST_PROTOCOL)
+	# pickle.dump(same, f, protocol=pickle.HIGHEST_PROTOCOL)
+	# f.close()
 
 	mat = np.vstack((distances, same)).T
 	sio.savemat('distances.mat', {'mat':mat})
-
+	mat = np.vstack((dist_cos, same)).T
+	sio.savemat('dist_cos.mat', {'mat':mat})
 
 if __name__ == "__main__":
     tf.app.run()
