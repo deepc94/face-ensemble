@@ -3,7 +3,8 @@ Code to load the weights of pretrained VGG-Face Descriptor model and return
 4096-D FC7 features.
 
 Author: Deep Chakraborty
-Date: 12/07/2017
+Date Created: 12/07/2017
+Date Modified: 12/18/2017
 """
 
 __author__ = "Deep Chakraborty"
@@ -12,6 +13,8 @@ import tensorflow as tf
 import numpy as np
 import scipy.io as sio
 from scipy.misc import imread, imsave, imresize
+import scipy.io as sio
+import cPickle as pickle
 
 import TensorflowUtils as utils
 from lfw import *
@@ -93,8 +96,8 @@ def get_fc7 (image):
 
 	image_net = vgg_net(weights, processed_image)
 	fc7_layer = image_net['fc7']
-	# return tf.reshape(fc7_layer, [-1])
-	return fc7_layer
+	return tf.reshape(fc7_layer, [-1])
+	# return fc7_layer
 
 
 def merge_fc7 (features, method):
@@ -120,7 +123,7 @@ def merge_fc7 (features, method):
 
 	return comb_feature
 
-def similarity (feature1, feature2, method, threshold):
+def similarity (feature1, feature2, method):
 	"""
 	Computes similarity between two fc7 feature vectors
 
@@ -129,69 +132,70 @@ def similarity (feature1, feature2, method, threshold):
 		feature2: feature vector2
 		method: 'L2': compute similarity using L2 distance
 			'rank1': computer similarity using rank1 score
-		threshold: similarity threshold for reporting same or not
 
 	Outputs:
 		score: similarity score between two feature vectors
-		same: whether features belong to same person or not 
-			(True or False)
 	"""
-	same = False
 
 	if method == 'L2':
-		score = np.sqrt(np.sum((feature1-feature2)**2))
-		if score <= threshold:
-			same = True
+		score = np.sqrt(np.sum((feature1-feature2)**2, axis=1))
+
 	elif method == 'rank1':
 		pass
 
-	return (score, same)
+	return score
 
 
 def main (argv=None):
 
 	print "Start ..."
 	image = tf.placeholder(tf.float32, shape=[None, 224, 224, 3], name="input_image")
+	# Define placeholder for fc7 features of an image
 	feature = get_fc7(image)
 
 	# Read Images
 	print "Reading images and preprocessing ..."
 
 	# define image paths
-	pairs_path = './pairsDevTrain.txt'
+	pairs_path = './dataset/pairsDevTrain.txt'
 	suffix = 'jpg'
 	root = './dataset/lfw2'
 
 	# determine image pairs to be loaded
 	pairs = load_pairs(pairs_path)
 
-	# define placeholders for 2 sets of images to be compared, as well as their labels
-	image1 = np.zeros([pairs.shape[0], 224, 224, 3], dtype=np.float32)
-	image2 = np.zeros([pairs.shape[0], 224, 224, 3], dtype=np.float32)
-	same = np.zeros([pairs.shape[0]], dtype=np.int32)
+	with tf.Session() as sess:
 
-	# load the images
-	i=0
-	for pair in pairs:
-		name1, name2, same[i] = pairs_info(pair, suffix)
-		image1[i,:], image2[i,:] = readImage(root, name1, name2)
-		i += 1
+		# init tf session and get the feature vectors for the images
+		print "Evaluating forward pass for VGG face Descriptor ..." 
+		sess.run(tf.global_variables_initializer())
+		# define placeholders for 2 sets of images to be compared, as well as their labels
+		feature1 = np.zeros([pairs.shape[0], 4096], dtype=np.float32)
+		feature2 = np.zeros([pairs.shape[0], 4096], dtype=np.float32)
+		same = np.zeros([pairs.shape[0]], dtype=np.int32)
 
-	# init tf session and get the feature vectors for the images
-	print "Evaluating forward pass for VGG face Descriptor ..." 
-	sess = tf.Session()
-	sess.run(tf.global_variables_initializer())
-	feature1 = sess.run(feature, feed_dict={image: image1})
-	feature2 = sess.run(feature, feed_dict={image: image2})
+		# load the images
+		i=0
+		for pair in pairs:
+			if i%10 == 0 or i==0:
+				print "Evaluated %d pairs" % (i)
+			name1, name2, same[i] = pairs_info(pair, suffix)
+			image1, image2 = readImage(root, name1, name2)
 
-	print feature1.shape
-	print feature2.shape
+			feature1[i,:] = sess.run(feature, feed_dict={image: image1})
+			feature2[i,:] = sess.run(feature, feed_dict={image: image2})
+			i += 1
 
-	# # combine feature vectors using average method
-	# comb1 = merge_fc7((feat1, feat2), method='average')
-	# comb2 = merge_fc7((feat3, feat4), method='average')
+	distances = similarity(feature1, feature2, 'L2')
+	file_ID = 'distances.pkl'
+	f = open(file_ID, "w")
+	pickle.dump(distances, f, protocol=pickle.HIGHEST_PROTOCOL)
+	pickle.dump(same, f, protocol=pickle.HIGHEST_PROTOCOL)
+	f.close()
 
-	# comb5 = merge_fc7((feat5, feat6), method='average')
+	mat = np.vstack((distances, same)).T
+	sio.savemat('distances.mat', {'mat':mat})
+
 
 if __name__ == "__main__":
     tf.app.run()

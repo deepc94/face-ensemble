@@ -1,3 +1,6 @@
 # Ignore Python header files
 *.pyc
 *.DS_Store
+dataset/lfw2/*
+*.mat
+*.pkl

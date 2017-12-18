@@ -35,8 +35,8 @@ def readImage(root, name1, name2):
 	im2 = im2[:,:,[2,1,0]]
 
 	# resize images down to 224x224 for VGG
-	im1 = imresize(im1, (224, 224))
-	im2 = imresize(im2, (224, 224))
+	im1 = imresize(im1, (224, 224)).reshape(1, 224, 224, 3)
+	im2 = imresize(im2, (224, 224)).reshape(1, 224, 224, 3)
 
 	return im1, im2
 
