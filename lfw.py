@@ -2,6 +2,8 @@ import os
 import numpy as np
 from scipy.misc import imread, imresize
 
+# The average VGG faces image
+average_image = np.array([[[129.1863, 104.7624, 93.5940]]])
 
 def load_pairs(pairs_path):
 	print("Reading pairs...")
@@ -31,12 +33,20 @@ def readImage(root, name1, name2):
 	im2 = imread(os.path.join(root, name2))
 
 	# convert RGB images to BGR
-	im1 = im1[:,:,[2,1,0]]
-	im2 = im2[:,:,[2,1,0]]
+	# im1 = im1[:,:,[2,1,0]]
+	# im2 = im2[:,:,[2,1,0]]
 
 	# resize images down to 224x224 for VGG
-	im1 = imresize(im1, (224, 224)).reshape(1, 224, 224, 3)
-	im2 = imresize(im2, (224, 224)).reshape(1, 224, 224, 3)
+	im1 = imresize(im1, (224, 224))
+	im2 = imresize(im2, (224, 224))
 
+	# subtract average VGG faces image
+	im1 = im1 - average_image
+	im2 = im2 - average_image
+
+	# reshape images to batch size of 1
+	im1 = im1.reshape(1, 224, 224, 3)
+	im2 = im2.reshape(1, 224, 224, 3)
+	
 	return im1, im2
 

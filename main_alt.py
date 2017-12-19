@@ -18,89 +18,64 @@ from scipy import spatial
 import scipy.io as sio
 # import cPickle as pickle
 
-import TensorflowUtils as utils
+# import TensorflowUtils as utils
 from lfw import *
 
-def vgg_net (weights, image):
+def vgg_net (data, image):
 
-	"""
-	VGG Architecture:
-
-	layers = (
-		'conv1_1', 'relu1_1', 'conv1_2', 'relu1_2', 'pool1',
-
-		'conv2_1', 'relu2_1', 'conv2_2', 'relu2_2', 'pool2',
-
-		'conv3_1', 'relu3_1', 'conv3_2', 'relu3_2', 'conv3_3',
-		'relu3_3', 'pool3',
-
-		'conv4_1', 'relu4_1', 'conv4_2', 'relu4_2', 'conv4_3',
-		'relu4_3', 'pool4',
-
-		'conv5_1', 'relu5_1', 'conv5_2', 'relu5_2', 'conv5_3',
-		'relu5_3', 'pool5',
-
-		'fc6', 'relu6', 'dropout6',
-		'fc7', 'relu7', 
-		'fc8', 'prob'
-	)
-	"""
-	layer_num = weights.shape[0]
-	net = {}
+	# read layer info
+	layers = data['layers']
 	current = image
 
-	for i in range(layer_num):
+	for layer in layers[0]:
+		name = layer[0]['name'][0][0]
 
-		# exit the loop after fc7 layer (skip relu7, fc8, prob)
-		if i >= layer_num - 3:
+		# stop the forward pass after the fc7 layer
+		if name == 'relu7':
 			break
 
-		name = weights[i][0,0]['name'][0]
-		kind = name[:2]
+		# perform the appropriate layer operation
+		layer_type = layer[0]['type'][0][0]
+		if layer_type == 'conv':
+			if name[:2] == 'fc':
+				padding = 'VALID'
+			else:
+				padding = 'SAME'
+			stride = layer[0]['stride'][0][0]
+			kernel, bias = layer[0]['weights'][0][0]
+			bias = np.squeeze(bias).reshape(-1)
+			conv = tf.nn.conv2d(current, tf.constant(kernel),
+								strides=(1, stride[0], stride[0], 1), padding=padding)
+			current = tf.nn.bias_add(conv, bias)
+			print(name, 'stride:', stride, 'kernel size:', np.shape(kernel))
+		elif layer_type == 'relu':
+			current = tf.nn.relu(current)
+			print(name)
+		elif layer_type == 'pool':
+			stride = layer[0]['stride'][0][0]
+			pool = layer[0]['pool'][0][0]
+			current = tf.nn.max_pool(current, ksize=(1, pool[0], pool[1], 1),
+									 strides=(1, stride[0], stride[0], 1), padding='SAME')
+			print(name, 'stride:', stride)
+		elif layer_type == 'softmax':
+			current = tf.nn.softmax(tf.reshape(current, [-1, 2622]))
+			print(name)
 
-		if kind == 'co':
-			kernels, bias = weights[i][0,0]['weights'][0]
-			# matconvnet: weights are [width, height, in_channels, out_channels]
-			# tensorflow: weights are [height, width, in_channels, out_channels]
-			kernels = utils.get_variable(np.transpose(kernels, (1, 0, 2, 3)), name=name + "_w")
-			bias = utils.get_variable(bias.reshape(-1), name=name + "_b")
-			current = utils.conv2d_basic(current, kernels, bias)
-		elif kind == 'fc':
-			kernels, bias = weights[i][0,0]['weights'][0]
-			kernels = utils.get_variable(np.transpose(kernels, (1, 0, 2, 3)), name=name + "_w")
-			bias = utils.get_variable(bias.reshape(-1), name=name + "_b")
-			current = utils.conv2d_same(current, kernels, bias)
-		elif kind == 're':
-			current = tf.nn.relu(current, name=name)
-		elif kind == 'po':
-			current = utils.max_pool_2x2(current)
-
-		net[name] = current
-
-	return net
+	# return the fc7 values
+	return current
 
 def get_fc7 (image):
 	"""
 	Extract fc7 features from given image
 	"""
 	print("setting up vgg initialized conv layers ...")
-	model_dir = '/Users/deep/Programming/VGG/'
+	model_dir = './'
 	model_name = 'vgg-face.mat'
 	model_data = sio.loadmat(model_dir+model_name)
-	weights = np.squeeze(model_data['layers'])
+	fc7_layer = vgg_net(model_data, image)
 
-	#subracting mean
-	meta = model_data['meta']
-	mean =  meta[0,0]['normalization'][0,0]['averageImage']
-	mean_pixel = np.mean(mean, axis=(0, 1))
-
-	processed_image = utils.process_image(image, mean_pixel)
-
-	image_net = vgg_net(weights, processed_image)
-	fc7_layer = image_net['fc7']
-	return tf.reshape(fc7_layer, [-1])
 	# return fc7_layer
-
+	return tf.reshape(fc7_layer, [-1])
 
 def merge_fc7 (features, method):
 	"""
@@ -184,7 +159,7 @@ def main (argv=None):
 		# load the images
 		i=0
 		for pair in pairs:
-			if i%10 == 0 or i==0:
+			if i%50 == 0 or i==0:
 				print("Evaluated {} pairs".format(i))
 			name1, name2, same[i] = pairs_info(pair, suffix)
 			image1, image2 = readImage(root, name1, name2)
@@ -195,11 +170,6 @@ def main (argv=None):
 
 	distances = similarity(feature1, feature2, 'L2')
 	dist_cos = similarity(feature1, feature2, 'cosine')
-	# file_ID = 'distances.pkl'
-	# f = open(file_ID, "w")
-	# pickle.dump(distances, f, protocol=pickle.HIGHEST_PROTOCOL)
-	# pickle.dump(same, f, protocol=pickle.HIGHEST_PROTOCOL)
-	# f.close()
 
 	mat = np.vstack((distances, same)).T
 	sio.savemat('distances.mat', {'mat':mat})
@@ -208,9 +178,3 @@ def main (argv=None):
 
 if __name__ == "__main__":
     tf.app.run()
-
-
-
-
-
-
