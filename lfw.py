@@ -12,12 +12,12 @@ def load_pairs(pairs_path, root, suffix):
 		for line in f.readlines()[1:]:
 			pair = line.strip().split()
 			if len(pair) == 3:
-				name = "{}/{}_{}.{}".format(pair[0], pair[0], '8'.zfill(4), suffix)
+				name = "{}/{}_{}.{}".format(pair[0], pair[0], '4'.zfill(4), suffix)
 				if os.path.isfile(os.path.join(root, name)):
 					pairs.append(pair)
 			elif len(pair) == 4:
-				name1 = "{}/{}_{}.{}".format(pair[0], pair[0], '4'.zfill(4), suffix)
-				name2 = "{}/{}_{}.{}".format(pair[2], pair[2], '4'.zfill(4), suffix)
+				name1 = "{}/{}_{}.{}".format(pair[0], pair[0], '2'.zfill(4), suffix)
+				name2 = "{}/{}_{}.{}".format(pair[2], pair[2], '2'.zfill(4), suffix)
 				if os.path.isfile(os.path.join(root, name1)) and os.path.isfile(os.path.join(root, name2)):
 					pairs.append(pair)
 	return np.array(pairs)
@@ -34,6 +34,8 @@ def pairs_info(pair, suffix):
 	else:
 		raise Exception(
 			"Unexpected pair length: {}".format(len(pair)))
+	name1 = [name1]
+	name2 = [name2]
 	return (name1, name2, same)
 
 def pairs_info_multiple (pair, suffix):
@@ -70,24 +72,23 @@ def pairs_info_multiple (pair, suffix):
 
 
 def readImage(root, name1, name2):
-	im1 = imread(os.path.join(root, name1))
-	im2 = imread(os.path.join(root, name2))
+	image1 = []
+	image2 = []
+	for n1, n2 in zip(name1, name2):
+		im1 = imread(os.path.join(root, n1))
+		im2 = imread(os.path.join(root, n2))
 
-	# convert RGB images to BGR
-	# im1 = im1[:,:,[2,1,0]]
-	# im2 = im2[:,:,[2,1,0]]
+		# resize images down to 224x224 for VGG
+		im1 = imresize(im1, (224, 224))
+		im2 = imresize(im2, (224, 224))
 
-	# resize images down to 224x224 for VGG
-	im1 = imresize(im1, (224, 224))
-	im2 = imresize(im2, (224, 224))
+		# subtract average VGG faces image
+		im1 = im1 - average_image
+		im2 = im2 - average_image
 
-	# subtract average VGG faces image
-	im1 = im1 - average_image
-	im2 = im2 - average_image
-
-	# reshape images to batch size of 1
-	im1 = im1.reshape(1, 224, 224, 3)
-	im2 = im2.reshape(1, 224, 224, 3)
+		# create a list of all images and stack them up to form a batch
+		image1.append(im1)
+		image2.append(im2)
 	
-	return im1, im2
+	return np.stack(image1, axis=0), np.stack(image2, axis=0)
 
