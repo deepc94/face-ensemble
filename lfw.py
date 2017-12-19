@@ -45,7 +45,7 @@ def pairs_info_multiple (pair, suffix):
 	if len(pair) == 3:
 		name1.append("{}/{}_{}.{}".format(pair[0], pair[0], pair[1].zfill(4), suffix))
 		name2.append("{}/{}_{}.{}".format(pair[0], pair[0], pair[2].zfill(4), suffix))
-		for i in range(8):
+		for i in range(4):
 			num = str(i+1)
 			if num != pair[1] and num != pair[2]:
 				if len(name1) < 4:
@@ -57,7 +57,7 @@ def pairs_info_multiple (pair, suffix):
 	elif len(pair) == 4:
 		name1.append("{}/{}_{}.{}".format(pair[0], pair[0], pair[1].zfill(4), suffix))
 		name2.append("{}/{}_{}.{}".format(pair[2], pair[2], pair[3].zfill(4), suffix))
-		for i in range(4):
+		for i in range(2):
 			num = str(i+1)
 			if len(name1) < 4 and num != pair[1]:
 				name1.append("{}/{}_{}.{}".format(pair[0], pair[0], num.zfill(4), suffix))
