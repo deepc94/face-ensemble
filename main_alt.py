@@ -144,7 +144,7 @@ def main (argv=None):
 	root = './dataset/lfw2'
 
 	# determine image pairs to be loaded
-	pairs = load_pairs(pairs_path)
+	pairs = load_pairs(pairs_path, root, suffix)
 
 	with tf.Session() as sess:
 
@@ -159,7 +159,7 @@ def main (argv=None):
 		# load the images
 		i=0
 		for pair in pairs:
-			if i%50 == 0 or i==0:
+			if i%10 == 0 or i==0:
 				print("Evaluated {} pairs".format(i))
 			name1, name2, same[i] = pairs_info(pair, suffix)
 			image1, image2 = readImage(root, name1, name2)
@@ -167,6 +167,7 @@ def main (argv=None):
 			feature1[i,:] = sess.run(feature, feed_dict={image: image1})
 			feature2[i,:] = sess.run(feature, feed_dict={image: image2})
 			i += 1
+		print("Evaluated {} pairs".format(i))
 
 	distances = similarity(feature1, feature2, 'L2')
 	dist_cos = similarity(feature1, feature2, 'cosine')
