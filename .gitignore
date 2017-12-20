@@ -2,5 +2,3 @@
 *.pyc
 *.DS_Store
 dataset/lfw2/*
-*.mat
-*.pkl

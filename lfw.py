@@ -4,6 +4,7 @@ from scipy.misc import imread, imresize
 
 # The average VGG faces image
 average_image = np.array([[[129.1863, 104.7624, 93.5940]]])
+min_ppl = 2
 
 def load_pairs(pairs_path, root, suffix):
 	print("Reading pairs...")
@@ -12,12 +13,12 @@ def load_pairs(pairs_path, root, suffix):
 		for line in f.readlines()[1:]:
 			pair = line.strip().split()
 			if len(pair) == 3:
-				name = "{}/{}_{}.{}".format(pair[0], pair[0], '4'.zfill(4), suffix)
+				name = "{}/{}_{}.{}".format(pair[0], pair[0], str(2*min_ppl).zfill(4), suffix)
 				if os.path.isfile(os.path.join(root, name)):
 					pairs.append(pair)
 			elif len(pair) == 4:
-				name1 = "{}/{}_{}.{}".format(pair[0], pair[0], '2'.zfill(4), suffix)
-				name2 = "{}/{}_{}.{}".format(pair[2], pair[2], '2'.zfill(4), suffix)
+				name1 = "{}/{}_{}.{}".format(pair[0], pair[0], str(min_ppl).zfill(4), suffix)
+				name2 = "{}/{}_{}.{}".format(pair[2], pair[2], str(min_ppl).zfill(4), suffix)
 				if os.path.isfile(os.path.join(root, name1)) and os.path.isfile(os.path.join(root, name2)):
 					pairs.append(pair)
 	return np.array(pairs)
@@ -45,23 +46,23 @@ def pairs_info_multiple (pair, suffix):
 	if len(pair) == 3:
 		name1.append("{}/{}_{}.{}".format(pair[0], pair[0], pair[1].zfill(4), suffix))
 		name2.append("{}/{}_{}.{}".format(pair[0], pair[0], pair[2].zfill(4), suffix))
-		for i in range(4):
+		for i in range(2*min_ppl):
 			num = str(i+1)
 			if num != pair[1] and num != pair[2]:
-				if len(name1) < 4:
+				if len(name1) < min_ppl:
 					name1.append("{}/{}_{}.{}".format(pair[0], pair[0], num.zfill(4), suffix))
-				elif len(name2) < 4:
+				elif len(name2) < min_ppl:
 					name2.append("{}/{}_{}.{}".format(pair[0], pair[0], num.zfill(4), suffix))
 		same = 1
 
 	elif len(pair) == 4:
 		name1.append("{}/{}_{}.{}".format(pair[0], pair[0], pair[1].zfill(4), suffix))
 		name2.append("{}/{}_{}.{}".format(pair[2], pair[2], pair[3].zfill(4), suffix))
-		for i in range(2):
+		for i in range(min_ppl):
 			num = str(i+1)
-			if len(name1) < 4 and num != pair[1]:
+			if len(name1) < min_ppl and num != pair[1]:
 				name1.append("{}/{}_{}.{}".format(pair[0], pair[0], num.zfill(4), suffix))
-			if len(name2) < 4 and num != pair[3]:
+			if len(name2) < min_ppl and num != pair[3]:
 				name2.append("{}/{}_{}.{}".format(pair[2], pair[2], num.zfill(4), suffix))
 		same = 0
 
